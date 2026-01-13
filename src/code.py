@@ -25,7 +25,7 @@ def x_map(location):
         my_map = folium.Map(location = [lat,lng], zoom_start = 9)
         folium.Marker([lat,lng], popup = location).add_to(my_map)
         global map_path
-        map_path = r"C:\Users\Shivanshi\OneDrive\School\Python\CS Project XII\maps\mylocation.html"
+        map_path = "maps/mylocation.html"
         my_map.save(map_path)
         return "Map generated.\n(Location on map may not be accurate.)"
     except Exception as e:
