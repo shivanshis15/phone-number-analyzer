@@ -4,34 +4,46 @@ import datetime
 import tkinter as tk
 import webbrowser
 import mysql.connector 
-import opencage
 from opencage.geocoder import OpenCageGeocode
 import folium
+
+map_path = None
 
 connection = mysql.connector.connect(host = "localhost", user = "root", password = "cfdgh234")
 cursor = connection.cursor()
 
 def x_map(location):
+
     if not location:
         return "No map generated due to missing location data."
+    
     try:
-        key = "a8ebbbf6b22c43d9b9b3f3c289db258e"
+        key = "1cbd7bf4acfa4ca7a120d66771afa238"
         geocoder = OpenCageGeocode(key)
         results = geocoder.geocode(location)
+
         if not results:
-            return"Error: Unable to fetch coordinates."
+            print("DEBUG: Geocoder returned no results for", location)
+            return False
+        
         lat = results[0]['geometry']['lat']
         lng = results[0]['geometry']['lng']
+
         my_map = folium.Map(location = [lat,lng], zoom_start = 9)
         folium.Marker([lat,lng], popup = location).add_to(my_map)
+
         global map_path
-        map_path = "maps/mylocation.html"
+        map_path = rf"C:\Users\Shivanshi\Desktop\phone-number-analyzer\maps\location_map.html"
         my_map.save(map_path)
-        return "Map generated.\n(Location on map may not be accurate.)"
+
+        return "Map generated.\n(Exact location on map may not be accurate.)"
+    
     except Exception as e:
-        return f"Error: {str(e)}"
+        print(f"Map generation error: {str(e)}")
+        return False
     
 def get_phone_type(parsed_number):
+
     if phonenumbers.number_type(parsed_number) == PhoneNumberType.MOBILE: 
         return "Mobile"
     elif phonenumbers.number_type(parsed_number) == PhoneNumberType.FIXED_LINE:
@@ -41,23 +53,32 @@ def get_phone_type(parsed_number):
     
 def get_info():
     number = phone_number_entry.get().strip()
+
     if not number:
         result_label.config(text="Error: Please enter a phone number.", fg = "red")
         return
+    
     if not number.startswith("+"):
         result_label.config(text = "Error: Please include the country code (e.g., +91 for India).", fg = 'red')
         return
+    
     try:
         parsed_number = phonenumbers.parse(number)
         if not phonenumbers.is_valid_number(parsed_number):
             result_label.config(text = "Error: Invalid phone number.", fg = "red")
             return
+        
         formatted_number = phonenumbers.format_number(parsed_number, PhoneNumberFormat.E164)
         location = geocoder.description_for_number(parsed_number, "en")
         service_provider = carrier.name_for_number(parsed_number, "en") 
         phone_type = get_phone_type(parsed_number)
         current_time = datetime.datetime.now()
-        x_map(location)
+
+        success = x_map(location)
+        if success:
+            show_map_button.config(state='normal')
+        else:
+            result_label.config(text="Map could not be generated.", fg="red")
 
         insert_data(formatted_number, location, service_provider, phone_type, current_time)
         
@@ -65,14 +86,13 @@ def get_info():
                                   f"Location: {location}\n\n"
                                   f"Service Provider: {service_provider}\n\n"
                                   f"Phone Type: {phone_type}\n\n"), fg = "black")
-        show_map_button.config(state = "normal")
     except Exception as e:
         result_label.config(text=f"Error: {str(e)}", fg="red")
         
 def show_map():
     try:
         if map_path:
-            webbrowser.open(map_path)
+            webbrowser.open_new_tab("file:///" + map_path.replace("\\", "/"))
         else:
             result_label.config(text="No map available to display.", fg="red")
     except Exception as e:
@@ -116,9 +136,6 @@ def show_database():
     except Exception as e:
         database_text.insert(tk.END, f"Error fetching data: {str(e)}")
 
-def close_connection():
-    connection.close()
-
 root = tk.Tk()
 root.title("Phone Number Information") 
 
@@ -140,3 +157,4 @@ database_text.grid(row=6, column=0, columnspan=2, padx=10, pady=10)
 
 print("Code Running...")
 root.mainloop()
+connection.close()
